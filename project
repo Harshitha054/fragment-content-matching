@@ -1,0 +1,59 @@
+## content matching
+
+pip install transformers torch sentence-transformers
+from sentence_transformers import SentenceTransformer, util
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+piracy_text_database = [
+    "The quick brown fox jumps over the lazy dog",
+    "This is a copyrighted sentence",
+    "An example of fragmented content in piracy"
+]
+input_text = "A quick fox jumps over the lazy dog"
+input_embedding = model.encode(input_text, convert_to_tensor=True)
+database_embeddings = model.encode(piracy_text_database, convert_to_tensor=True)
+cosine_scores = util.cos_sim(input_embedding, database_embeddings)
+best_match_idx = cosine_scores.argmax().item()
+best_match = piracy_text_database[best_match_idx]
+similarity_score = cosine_scores[0][best_match_idx].item()
+print("Input Text:", input_text)
+print("Best Match:", best_match)
+print("Similarity Score:", round(similarity_score * 100, 2), "%")
+
+## image matching
+pip install transformers torch opencv-python
+
+import os
+import torch
+import numpy as np
+from transformers import ViTFeatureExtractor, ViTModel
+from sklearn.metrics.pairwise import cosine_similarity
+import cv2
+
+model_name = "google/vit-base-patch16-224-in21k"
+feature_extractor = ViTFeatureExtractor.from_pretrained(model_name)
+model = ViTModel.from_pretrained(model_name)
+def extract_vit_features(image_path, feature_extractor, model):
+    image = cv2.imread(image_path)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    inputs = feature_extractor(images=image, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**inputs)
+    features = outputs.last_hidden_state.mean(dim=1).squeeze().numpy()
+    return features
+
+def compare_images_vit(img1_path, img2_path):
+    features1 = extract_vit_features(img1_path, feature_extractor, model)
+    features2 = extract_vit_features(img2_path, feature_extractor, model)
+    similarity = cosine_similarity([features1], [features2])
+    return similarity[0][0]
+image1_path = os.path.abspath(r"/content/drive/MyDrive/gun2.jpg")
+
+
+image2_path = os.path.abspath(r"/content/drive/MyDrive/gun2.jpg")
+
+similarity_score = compare_images_vit(image1_path, image2_path)
+print("Image Similarity Score:", round(similarity_score * 100, 2), "%")
+
+
